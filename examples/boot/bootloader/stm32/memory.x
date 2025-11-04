@@ -1,11 +1,12 @@
 MEMORY
 {
   /* NOTE 1 K = 1 KiBi = 1024 bytes */
+  /* STM32C092RC: 256KB Flash (2KB page size), 30KB RAM */
   FLASH                             : ORIGIN = 0x08000000, LENGTH = 24K
-  BOOTLOADER_STATE                  : ORIGIN = 0x08006000, LENGTH = 8K
-  ACTIVE                            : ORIGIN = 0x08008000, LENGTH = 32K
-  DFU                               : ORIGIN = 0x08010000, LENGTH = 36K
-  RAM                         (rwx) : ORIGIN = 0x20000000, LENGTH = 16K
+  BOOTLOADER_STATE                  : ORIGIN = 0x08006000, LENGTH = 4K
+  ACTIVE                            : ORIGIN = 0x08007000, LENGTH = 120K
+  DFU                               : ORIGIN = 0x08025000, LENGTH = 122K
+  RAM                         (rwx) : ORIGIN = 0x20000000, LENGTH = 30K
 }
 
 __bootloader_state_start = ORIGIN(BOOTLOADER_STATE) - ORIGIN(FLASH);

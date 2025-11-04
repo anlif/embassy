@@ -11,7 +11,7 @@ use panic_reset as _;
 #[embassy_executor::main]
 async fn main(_spawner: Spawner) {
     let p = embassy_stm32::init(Default::default());
-    let mut led = Output::new(p.PB6, Level::High, Speed::Low);
+    let mut led = Output::new(p.PA5, Level::High, Speed::Low);
 
     loop {
         led.set_high();
