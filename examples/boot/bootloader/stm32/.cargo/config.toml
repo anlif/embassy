@@ -1,6 +1,6 @@
 [target.'cfg(all(target_arch = "arm", target_os = "none"))']
 # replace your chip as listed in `probe-rs chip list`
-runner = "probe-rs run --chip STM32C092RCTx"
+runner = "probe-rs run --chip STM32C071RB"
 
 [build]
 target = "thumbv6m-none-eabi"

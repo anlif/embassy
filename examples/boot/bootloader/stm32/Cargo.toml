@@ -10,7 +10,7 @@ publish = false
 defmt = { version = "1.0.1", optional = true }
 defmt-rtt = { version = "1.0.0", optional = true }
 
-embassy-stm32 = { path = "../../../../embassy-stm32", features = ["stm32c092rc"] }
+embassy-stm32 = { path = "../../../../embassy-stm32", features = ["stm32c071rb"] }
 embassy-boot-stm32 = { path = "../../../../embassy-boot-stm32" }
 cortex-m = { version = "0.7.6", features = ["inline-asm", "critical-section-single-core"] }
 embassy-sync = { version = "0.7.2", path = "../../../../embassy-sync" }
@@ -60,5 +60,5 @@ overflow-checks = false
 
 [package.metadata.embassy]
 build = [
-  { target = "thumbv7em-none-eabi", features = ["embassy-stm32/stm32c092rc"] }
+  { target = "thumbv7em-none-eabi", features = ["embassy-stm32/stm32c071rb"] }
 ]
