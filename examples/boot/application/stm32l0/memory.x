@@ -4,8 +4,8 @@ MEMORY
   /* STM32C092RC: 256KB Flash (2KB page size), 30KB RAM */
   BOOTLOADER                        : ORIGIN = 0x08000000, LENGTH = 24K
   BOOTLOADER_STATE                  : ORIGIN = 0x08006000, LENGTH = 4K
-  FLASH                             : ORIGIN = 0x08007000, LENGTH = 120K
-  DFU                               : ORIGIN = 0x08025000, LENGTH = 122K
+  FLASH                             : ORIGIN = 0x08007000, LENGTH = 100K
+  DFU                               : ORIGIN = 0x08020000, LENGTH = 102K
   RAM                         (rwx) : ORIGIN = 0x20000000, LENGTH = 30K
 }
 

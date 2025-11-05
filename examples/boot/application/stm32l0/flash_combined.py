@@ -40,13 +40,13 @@ def build_bootloader():
 
     # Build bootloader ELF
     run_command(
-        ["cargo", "build", "--release", "--features", "embassy-stm32/stm32c092rc"],
+        ["cargo", "build", "--release", "--features", "defmt"],
         cwd=BOOTLOADER_DIR
     )
 
     # Create bootloader binary
     run_command(
-        ["cargo", "objcopy", "--release", "--features", "embassy-stm32/stm32c092rc",
+        ["cargo", "objcopy", "--release", "--features", "defmt",
          "--", "-O", "binary", "bootloader.bin"],
         cwd=BOOTLOADER_DIR
     )
@@ -89,26 +89,45 @@ def create_combined_binary(bootloader_bin, app_bin):
     with open(app_bin, 'rb') as f:
         app = f.read()
 
-    # Calculate padding
-    gap_size = APP_START_ADDR - FLASH_BASE
-    padding_size = gap_size - len(bootloader)
+    # Memory layout:
+    # 0x08000000 - 0x08006000: Bootloader (24K)
+    # 0x08006000 - 0x08007000: Bootloader State (4K)
+    # 0x08007000 - 0x08025000: Active partition (120K) - APP A goes here
+    # 0x08025000 - 0x08043800: DFU partition (122K)
 
-    if padding_size < 0:
-        print(f"Error: Bootloader ({len(bootloader)} bytes) is too large!", file=sys.stderr)
-        print(f"  Maximum size: {gap_size} bytes ({gap_size/1024:.1f}KB)", file=sys.stderr)
+    BOOTLOADER_END = 0x08006000
+    STATE_END = 0x08007000
+    ACTIVE_START = 0x08007000
+
+    bootloader_size = len(bootloader)
+    bootloader_max = BOOTLOADER_END - FLASH_BASE
+
+    if bootloader_size > bootloader_max:
+        print(f"Error: Bootloader ({bootloader_size} bytes) is too large!", file=sys.stderr)
+        print(f"  Maximum size: {bootloader_max} bytes ({bootloader_max/1024:.1f}KB)", file=sys.stderr)
         sys.exit(1)
 
+    # Calculate padding needed
+    padding_to_state = (BOOTLOADER_END - FLASH_BASE) - bootloader_size
+    state_padding = STATE_END - BOOTLOADER_END  # 4K state partition
+
     # Create combined binary (0xFF is the erased flash value)
-    combined = bootloader + (b'\xFF' * padding_size) + app
+    combined = (
+        bootloader +
+        (b'\xFF' * padding_to_state) +  # Pad to state partition
+        (b'\xFF' * state_padding) +      # State partition (erased)
+        app                               # Application in ACTIVE partition
+    )
 
     combined_path = Path("combined.bin")
     with open(combined_path, 'wb') as f:
         f.write(combined)
 
     print(f"✓ Combined binary: {len(combined)} bytes ({len(combined)/1024:.1f}KB)")
-    print(f"  - Bootloader:  0x{0:08x} - 0x{len(bootloader):08x}")
-    print(f"  - Padding:     0x{len(bootloader):08x} - 0x{gap_size:08x} (filled with 0xFF)")
-    print(f"  - Application: 0x{gap_size:08x} - 0x{gap_size + len(app):08x}\n")
+    print(f"  - Bootloader:      0x{FLASH_BASE:08x} - 0x{FLASH_BASE + bootloader_size:08x} ({bootloader_size} bytes)")
+    print(f"  - Padding:         0x{FLASH_BASE + bootloader_size:08x} - 0x{BOOTLOADER_END:08x}")
+    print(f"  - State (erased):  0x{BOOTLOADER_END:08x} - 0x{STATE_END:08x}")
+    print(f"  - Application:     0x{ACTIVE_START:08x} - 0x{ACTIVE_START + len(app):08x} ({len(app)} bytes)\n")
 
     return combined_path
 

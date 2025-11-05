@@ -6,6 +6,9 @@ use core::cell::RefCell;
 use cortex_m_rt::{entry, exception};
 #[cfg(feature = "defmt")]
 use defmt_rtt as _;
+#[cfg(feature = "defmt")]
+use defmt::info;
+
 use embassy_boot_stm32::*;
 use embassy_stm32::flash::{BANK1_REGION, Flash};
 use embassy_sync::blocking_mutex::Mutex;
@@ -16,17 +19,20 @@ fn main() -> ! {
 
     // Uncomment this if you are debugging the bootloader with debugger/RTT attached,
     // as it prevents a hard fault when accessing flash 'too early' after boot.
-    /*
-        for i in 0..10000000 {
-            cortex_m::asm::nop();
-        }
-    */
+    for i in 0..10000000 {
+        cortex_m::asm::nop();
+    }
 
     let layout = Flash::new_blocking(p.FLASH).into_blocking_regions();
     let flash = Mutex::new(RefCell::new(layout.bank1_region));
 
     let config = BootLoaderConfig::from_linkerfile_blocking(&flash, &flash, &flash);
     let active_offset = config.active.offset();
+
+    // Note: APP_A is now flashed directly to the ACTIVE partition by the flash tool
+    // The bootloader simply loads and executes it
+    info!("Preparing to boot from ACTIVE partition at offset 0x{:x}", active_offset);
+
     let bl = BootLoader::prepare::<_, _, _, 2048>(config);
 
     unsafe { bl.load(BANK1_REGION.base + active_offset) }
