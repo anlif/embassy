@@ -33,6 +33,13 @@ def run_command(cmd, cwd=None, description=None):
         print(f"\nError: Command failed with exit code {e.returncode}", file=sys.stderr)
         sys.exit(1)
 
+def erase_target():
+    """Erase flash on target"""
+    print("Erasing...")
+    run_command(
+        ["probe-rs", "erase", "--chip", "STM32C092RCTx"]
+    )
+    return
 
 def build_bootloader():
     """Build the bootloader"""
@@ -59,7 +66,7 @@ def build_bootloader():
 
 def build_application():
     """Build the application"""
-    print("Building application...")
+    print("Building application A...")
 
     # Build application ELF
     run_command(
@@ -74,7 +81,7 @@ def build_application():
 
     app_bin = Path("app.bin")
     size = app_bin.stat().st_size
-    print(f"✓ Application binary: {size} bytes ({size/1024:.1f}KB)\n")
+    print(f"✓ Application A binary: {size} bytes ({size/1024:.1f}KB)\n")
     return app_bin
 
 
@@ -162,11 +169,11 @@ def verify_binaries():
 
     # Verify application
     app_elf = Path("target/thumbv6m-none-eabi/release/a")
-    print("  Verifying application...")
+    print("  Verifying application A...")
     run_command(
         ["probe-rs", "verify", "--chip", CHIP, str(app_elf)]
     )
-    print("  ✓ Application verified\n")
+    print("  ✓ Application A verified\n")
 
 
 def main():
@@ -183,6 +190,9 @@ def main():
 
         # Create combined binary
         combined_bin = create_combined_binary(bootloader_bin, app_bin)
+
+        # Erase
+        erase_target()
 
         # Flash
         flash_binary(combined_bin)
