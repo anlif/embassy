@@ -63,26 +63,17 @@ pub(crate) unsafe fn blocking_erase_sector(sector: &FlashSector) -> Result<(), E
             defmt::trace!("FLASH_CR before: 0x{:08x}", cr_before.0);
         }
 
-        // CRITICAL FIX: STM32C0 PAC has wrong PNB bit positions
-        // RM0490 specifies PNB is at bits [9:3], but PAC appears to map it incorrectly
-        // We need to write PNB directly to the correct bit positions
-        pac::FLASH.cr().write(|w| {
-            // Manually construct the register value with correct bit positions
-            // PER = bit 1, PNB = bits 9:3, STRT = bit 16
-            let cr_val = (1 << 1)                      // PER
-                       | (((idx as u32) & 0x7F) << 3)  // PNB at bits 9:3
-                       | (1 << 16);                    // STRT
-
-            w.0 = cr_val;
-            *w
+        pac::FLASH.cr().modify(|w| {
+            w.set_per(true);
+            w.set_pnb(idx as u8);
+            w.set_strt(true);
         });
 
         #[cfg(feature = "defmt")]
         {
             let cr_after = pac::FLASH.cr().read();
-            let pnb_manual = (cr_after.0 >> 3) & 0x7F;
-            defmt::trace!("FLASH_CR after: 0x{:08x}, PER={}, PNB(auto)={}, PNB(manual)={}, STRT={}",
-                         cr_after.0, cr_after.per(), cr_after.pnb(), pnb_manual, cr_after.strt());
+            defmt::trace!("FLASH_CR after: 0x{:08x}, PER={}, PNB={}, STRT={}",
+                         cr_after.0, cr_after.per(), cr_after.pnb(), cr_after.strt());
         }
     });
 
