@@ -177,12 +177,81 @@ All STM32C0 series chips:
 
 ## Fix Status
 
-**Status**: FIXED in local Embassy fork
+**Status**: FIXED in local Embassy fork - Flash driver now working
 
 **Required for upstream**:
 1. Submit PR to Embassy GitHub with the two-line fix in `mod.rs`
 2. Add test coverage for STM32C0 flash operations
 3. Consider adding compile-time error if a flash family falls through to `other.rs`
+
+## Current Issue: Bootloader Reset Crash (2025-11-06)
+
+**Status**: INVESTIGATING
+
+### Problem
+After fixing the flash driver bug, DFU firmware writing now works correctly. However, after `mark_updated()` and reset, the bootloader crashes at address `0xfffffffe`.
+
+### Symptoms
+```
+[INFO ] All 1596 chunks written successfully
+[INFO ] Marking firmware as updated
+[TRACE] Erasing from 0x8006000 to 0x8007000  ← BOOTLOADER_STATE partition
+[TRACE] Erasing sector: FlashSector { bank: Bank1, index_in_bank: 12, ... }
+[TRACE] Erasing sector: FlashSector { bank: Bank1, index_in_bank: 13, ... }
+[TRACE] Writing 8 bytes at 0x8006000
+[INFO ] Resetting from a
+
+<< RESET >>
+
+Firmware exited unexpectedly: Exception
+Core 0
+    Frame 0: defmt_rtt::BUFFER @ 0xfffffffe> @ 0x00000000fffffffe
+Error: Exception
+```
+
+### Analysis
+- Address `0xfffffffe` suggests bootloader is trying to jump to erased flash (0xFFFFFFFF)
+- This indicates either:
+  1. State partition write succeeded but bootloader reads it incorrectly
+  2. Bootloader reads state correctly but swap operation fails
+  3. Vector table in ACTIVE partition is invalid after swap
+
+### Diagnostic Changes Added
+
+**Application (src/bin/a.rs)**:
+- Added state partition read-back verification after `mark_updated()`
+- Added 100ms delay for flash controller stabilization
+- Added explicit flash controller lock before reset
+- Enhanced logging
+
+**Bootloader (../../bootloader/stm32/src/main.rs)**:
+- Added raw state partition data dump (first 32 bytes)
+- Added bootloader state detection logging
+- **Added vector table validation** - reads and displays SP and reset vector before boot
+- Added sanity checks (SP should be in RAM, reset vector in flash with Thumb bit)
+- Enhanced HardFault handler to log CFSR register
+
+### Next Steps
+1. Rebuild with diagnostic code: `python3 flash_combined.py`
+2. Attach with `probe-rs attach --chip STM32C092RCTx`
+3. Press button to trigger DFU
+4. Analyze diagnostic output to determine exact failure point:
+   - Does state write succeed? (should show `0xF0 F0 F0...`)
+   - Does bootloader read state correctly? (should show "State::Swap")
+   - Is vector table valid? (SP in RAM, reset vector in flash)
+   - If vector shows `0xFFFFFFFF` → swap operation failed or didn't execute
+
+### Potential Root Causes
+1. **Flash controller timing** - STM32C0 may need more time after write before reset
+2. **State read failure** - Bootloader reading stale data from cache/buffer
+3. **Swap operation failure** - Page swapping may fail due to STM32C0-specific quirks
+4. **Vector table corruption** - ACTIVE partition may get corrupted during swap
+
+### Memory Layout
+- Bootloader: 0x08000000 - 0x08006000 (24K)
+- State: 0x08006000 - 0x08007000 (4K) ← Target of `mark_updated()`
+- ACTIVE: 0x08007000 - 0x08020000 (100K) ← Should contain app after swap
+- DFU: 0x08020000 - 0x08039800 (102K) ← Contains new firmware written by app
 
 ## Lessons Learned
 
