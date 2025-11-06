@@ -49,18 +49,7 @@ pub(crate) unsafe fn blocking_erase_sector(sector: &FlashSector) -> Result<(), E
     #[cfg(feature = "defmt")]
     defmt::trace!("STM32C0 Erase: addr=0x{:08x}, idx={}, erase_size={}", sector.start, idx, super::BANK1_REGION.erase_size);
 
-    // STM32C0 SILICON BUG WORKAROUND:
-    // When erasing pages >= 64 with PNB register, pages 0-11 also get erased!
-    // This destroys the bootloader region (pages 0-11).
-    //
-    // ROOT CAUSE: Unknown silicon bug or register mapping error in STM32C092RC
-    //
-    // WORKAROUND: Only skip erase for pages >= 64 (DFU partition).
-    // Pages 0-63 can be erased safely using the normal PNB mechanism.
 
-    // STM32C0 SILICON BUG TESTING: Perform actual erase to observe corruption
-    // TODO: Re-enable workaround after testing
-    // Normal erase for all pages to test corruption pattern
     wait_busy();
     clear_all_err();
 
@@ -137,40 +126,6 @@ pub(crate) unsafe fn clear_all_err() {
     pac::FLASH.sr().modify(|_| {});
 }
 
-#[cfg(any(flash_g0x0, flash_g0x1))]
-fn wait_busy() {
-    while pac::FLASH.sr().read().bsy() | pac::FLASH.sr().read().bsy2() {}
-}
-
-#[cfg(not(any(flash_g0x0, flash_g0x1)))]
 fn wait_busy() {
     while pac::FLASH.sr().read().bsy() {}
-}
-
-#[cfg(all(bank_setup_configurable, any(flash_g4c2, flash_g4c3, flash_g4c4)))]
-pub(crate) fn check_bank_setup() {
-    if cfg!(feature = "single-bank") && pac::FLASH.optr().read().dbank() {
-        panic!(
-            "Embassy is configured as single-bank, but the hardware is running in dual-bank mode. Change the hardware by changing the dbank value in the user option bytes or configure embassy to use dual-bank config"
-        );
-    }
-    if cfg!(feature = "dual-bank") && !pac::FLASH.optr().read().dbank() {
-        panic!(
-            "Embassy is configured as dual-bank, but the hardware is running in single-bank mode. Change the hardware by changing the dbank value in the user option bytes or configure embassy to use single-bank config"
-        );
-    }
-}
-
-#[cfg(all(bank_setup_configurable, flash_g0x1))]
-pub(crate) fn check_bank_setup() {
-    if cfg!(feature = "single-bank") && pac::FLASH.optr().read().dual_bank() {
-        panic!(
-            "Embassy is configured as single-bank, but the hardware is running in dual-bank mode. Change the hardware by changing the dual_bank value in the user option bytes or configure embassy to use dual-bank config"
-        );
-    }
-    if cfg!(feature = "dual-bank") && !pac::FLASH.optr().read().dual_bank() {
-        panic!(
-            "Embassy is configured as dual-bank, but the hardware is running in single-bank mode. Change the hardware by changing the dual_bank value in the user option bytes or configure embassy to use single-bank config"
-        );
-    }
 }
