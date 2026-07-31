@@ -3,10 +3,10 @@
 
 use defmt::*;
 use defmt_rtt as _;
-use panic_probe as _;
 use embassy_executor::Spawner;
 use embassy_stm32::i2c::{Error, I2c};
 use embedded_hal::i2c::Operation;
+use panic_probe as _;
 
 #[embassy_executor::main]
 async fn main(_spawner: Spawner) {

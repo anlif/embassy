@@ -22,11 +22,11 @@
 
 use defmt::*;
 use defmt_rtt as _;
-use panic_probe as _;
 use embassy_executor::Spawner;
 use embassy_stm32::i2c::{Error, I2c};
 use embassy_time::Timer;
 use embedded_hal::i2c::Operation;
+use panic_probe as _;
 
 const DEV_ADDR: u8 = 0x42;
 const WRITE_BYTE: u8 = 0xAB;
